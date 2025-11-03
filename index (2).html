@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulación de Carrera de Caballos - Análisis Probabilístico</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes gallop {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+        }
+        
+        .horse-running {
+            animation: gallop 0.3s infinite;
+        }
+        
+        @keyframes finish-celebration {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        .winner-celebration {
+            animation: finish-celebration 0.5s ease-in-out 3;
+        }
+        
+        .track-line {
+            background: repeating-linear-gradient(
+                90deg,
+                #e5e7eb 0px,
+                #e5e7eb 20px,
+                transparent 20px,
+                transparent 40px
+            );
+        }
+        
+        .finish-line {
+            background: repeating-linear-gradient(
+                90deg,
+                #000 0px,
+                #000 10px,
+                #fff 10px,
+                #fff 20px
+            );
+        }
+        
+        @keyframes blob {
+            0% { transform: translate(0px, 0px) scale(1); }
+            33% { transform: translate(30px, -50px) scale(1.1); }
+            66% { transform: translate(-20px, 20px) scale(0.9); }
+            100% { transform: translate(0px, 0px) scale(1); }
+        }
+        
+        .animate-blob {
+            animation: blob 7s infinite;
+        }
+        
+        .animation-delay-2000 {
+            animation-delay: 2s;
+        }
+        
+        .animation-delay-4000 {
+            animation-delay: 4s;
+        }
+        
+        @keyframes shimmer {
+            0% { background-position: -1000px 0; }
+            100% { background-position: 1000px 0; }
+        }
+        
+        .shimmer {
+            background: linear-gradient(to right, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%);
+            background-size: 1000px 100%;
+            animation: shimmer 3s infinite;
+        }
+        
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .fade-in-up {
+            animation: fadeInUp 0.6s ease-out;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-emerald-900 via-teal-800 to-cyan-900 min-h-screen relative overflow-x-hidden">
+    <!-- Animated background elements -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute top-0 -left-4 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
+        <div class="absolute top-0 -right-4 w-72 h-72 bg-yellow-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000"></div>
+        <div class="absolute -bottom-8 left-20 w-72 h-72 bg-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000"></div>
+    </div>
+    <div class="container mx-auto px-4 py-8 relative z-10">
+        <!-- Header -->
+        <div class="text-center mb-8 fade-in-up">
+            <div class="inline-block glass-effect rounded-2xl p-8 shadow-2xl">
+                <h1 class="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-green-200 to-cyan-200 mb-3 drop-shadow-lg">
+                    🏇 Simulación de Carrera de Caballos
+                </h1>
+                <div class="h-1 w-32 mx-auto bg-gradient-to-r from-yellow-400 to-cyan-400 rounded-full mb-3"></div>
+                <p class="text-xl text-gray-100 font-medium drop-shadow">Análisis Probabilístico en Tiempo Real</p>
+                <p class="text-sm text-gray-300 mt-3 font-light">ISP N°21 - Franco Leguizamón & Ever Robledo - 2025</p>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="glass-effect rounded-2xl shadow-2xl p-6 mb-6 fade-in-up border border-white/20">
+            <div class="flex flex-wrap gap-4 items-center justify-center">
+                <button id="startRace" class="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold py-4 px-10 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-2xl shadow-lg">
+                    🏁 Iniciar Carrera
+                </button>
+                <button id="resetRace" class="bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white font-bold py-4 px-10 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-2xl shadow-lg">
+                    🔄 Reiniciar
+                </button>
+                <div class="flex items-center gap-2 bg-white/10 rounded-xl px-5 py-3 backdrop-blur-sm border border-white/20">
+                    <label class="text-gray-100 font-semibold drop-shadow">Velocidad:</label>
+                    <select id="speedControl" class="bg-white/20 border border-white/30 text-white rounded-lg px-4 py-2 backdrop-blur-sm font-medium focus:ring-2 focus:ring-cyan-400 focus:outline-none">
+                        <option value="3000" class="text-gray-900">Lenta</option>
+                        <option value="1500" selected class="text-gray-900">Normal</option>
+                        <option value="500" class="text-gray-900">Rápida</option>
+                        <option value="100" class="text-gray-900">Muy Rápida</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Weather and Conditions -->
+        <div id="conditions" class="glass-effect rounded-2xl shadow-2xl p-6 mb-6 hidden fade-in-up border border-white/20">
+            <h3 class="text-2xl font-bold text-gray-100 mb-4 drop-shadow">🌤️ Condiciones de la Carrera</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="text-center p-5 bg-gradient-to-br from-blue-500/30 to-cyan-500/30 rounded-xl backdrop-blur-sm border border-white/20 shadow-lg hover:scale-105 transition-transform duration-300">
+                    <div class="text-4xl mb-3 drop-shadow-lg" id="weatherIcon">☀️</div>
+                    <div class="font-bold text-xl text-white drop-shadow" id="weatherText">Soleado</div>
+                    <div class="text-sm text-gray-200 mt-1" id="weatherProb">Probabilidad: 60%</div>
+                </div>
+                <div class="text-center p-5 bg-gradient-to-br from-green-500/30 to-emerald-500/30 rounded-xl backdrop-blur-sm border border-white/20 shadow-lg hover:scale-105 transition-transform duration-300">
+                    <div class="text-4xl mb-3 drop-shadow-lg">🏟️</div>
+                    <div class="font-bold text-xl text-white drop-shadow">Terreno de Césped</div>
+                    <div class="text-sm text-gray-200 mt-1">Distancia: 2000m</div>
+                </div>
+                <div class="text-center p-5 bg-gradient-to-br from-yellow-500/30 to-orange-500/30 rounded-xl backdrop-blur-sm border border-white/20 shadow-lg hover:scale-105 transition-transform duration-300">
+                    <div class="text-4xl mb-3 drop-shadow-lg">🏇</div>
+                    <div class="font-bold text-xl text-white drop-shadow">16 Competidores</div>
+                    <div class="text-sm text-gray-200 mt-1">Carrera Profesional</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Race Track -->
+        <div id="raceTrack" class="glass-effect rounded-2xl shadow-2xl p-6 mb-6 hidden fade-in-up border border-white/20">
+            <div class="relative">
+                <!-- Finish Line -->
+                <div class="finish-line h-full w-2 absolute right-0 top-0 bottom-0 shadow-lg"></div>
+                
+                <!-- Horses Container -->
+                <div id="horsesContainer" class="space-y-1">
+                    <!-- Horses will be added here dynamically -->
+                </div>
+                
+                <!-- Progress indicator -->
+                <div class="mt-4 text-center text-sm text-gray-100 font-semibold drop-shadow">
+                    <span id="raceProgress">0%</span> completado
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Panel -->
+        <div id="resultsPanel" class="glass-effect rounded-2xl shadow-2xl p-8 mb-6 hidden fade-in-up border border-white/20">
+            <h2 class="text-4xl font-bold text-center mb-6 text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-green-200 drop-shadow-lg">🏆 Resultados de la Carrera</h2>
+            
+            <!-- Winner Display -->
+            <div id="winnerDisplay" class="bg-gradient-to-br from-yellow-400/40 to-orange-400/40 backdrop-blur-sm rounded-2xl p-6 mb-6 border-4 border-yellow-300/50 shadow-2xl shimmer">
+                <!-- Winner info will be inserted here -->
+            </div>
+
+            <!-- Probability Calculations -->
+            <div class="bg-gradient-to-br from-blue-500/20 to-cyan-500/20 backdrop-blur-sm rounded-2xl p-6 mb-6 border border-white/30 shadow-xl">
+                <h3 class="text-3xl font-bold text-cyan-100 mb-4 drop-shadow">📊 Análisis Probabilístico Completo</h3>
+                <div id="probabilityCalculations" class="space-y-4">
+                    <!-- Calculations will be inserted here -->
+                </div>
+            </div>
+
+            <!-- Final Ranking -->
+            <div class="bg-gradient-to-br from-gray-800/40 to-gray-900/40 backdrop-blur-sm rounded-2xl p-6 border border-white/30 shadow-xl">
+                <h3 class="text-3xl font-bold text-gray-100 mb-4 drop-shadow">🥇 Clasificación Final</h3>
+                <div id="finalRanking" class="space-y-2">
+                    <!-- Ranking will be inserted here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Horse Information Panel -->
+        <div class="glass-effect rounded-2xl shadow-2xl p-6 mb-6 border border-white/20">
+            <h3 class="text-3xl font-bold text-gray-100 mb-6 drop-shadow">📋 Información de los Competidores</h3>
+            <div id="horseInfoGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- Horse info cards will be added here -->
+            </div>
+        </div>
+
+        <!-- Formulas Reference -->
+        <div class="glass-effect rounded-2xl shadow-2xl p-6 mt-6 border border-white/20">
+            <h3 class="text-3xl font-bold text-gray-100 mb-6 drop-shadow">🧮 Fórmulas Utilizadas</h3>
+            <div class="space-y-4 text-gray-100">
+                <div class="bg-gradient-to-r from-blue-500/30 to-purple-500/30 backdrop-blur-sm p-5 rounded-xl border border-white/20 shadow-lg hover:scale-105 transition-transform duration-300">
+                    <h4 class="font-bold mb-3 text-xl text-blue-200">Probabilidad Base Ajustada:</h4>
+                    <code class="block bg-black/30 p-3 rounded-lg text-cyan-200 font-mono backdrop-blur-sm">P(V)ᵢ = WinRateᵢ × FactorEdad × FactorDupla</code>
+                </div>
+                <div class="bg-gradient-to-r from-green-500/30 to-emerald-500/30 backdrop-blur-sm p-5 rounded-xl border border-white/20 shadow-lg hover:scale-105 transition-transform duration-300">
+                    <h4 class="font-bold mb-3 text-xl text-green-200">Probabilidad Total:</h4>
+                    <code class="block bg-black/30 p-3 rounded-lg text-green-200 font-mono backdrop-blur-sm">P(Victoria) = P(Soleado)×P(V|Soleado) + P(Nublado)×P(V|Nublado) + P(Lluvia)×P(V|Lluvia)</code>
+                </div>
+                <div class="bg-gradient-to-r from-purple-500/30 to-pink-500/30 backdrop-blur-sm p-5 rounded-xl border border-white/20 shadow-lg hover:scale-105 transition-transform duration-300">
+                    <h4 class="font-bold mb-3 text-xl text-purple-200">Teorema de Bayes:</h4>
+                    <code class="block bg-black/30 p-3 rounded-lg text-purple-200 font-mono backdrop-blur-sm">P(Clima|Ganó) = [P(Clima) × P(Ganó|Clima)] / P(Ganó)</code>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="glass-effect rounded-2xl shadow-2xl p-6 mt-6 border border-white/20 text-center">
+            <p class="text-gray-200 text-sm">
+                💻 Desarrollado con 
+                <span class="text-red-400">❤️</span> 
+                por 
+                <span class="font-bold text-cyan-300">Franco Leguizamón</span> 
+                & 
+                <span class="font-bold text-green-300">Ever Robledo</span>
+            </p>
+            <p class="text-gray-300 text-xs mt-2">
+                Instituto Superior de Profesorado N°21 "Posta de San Martín" - 2025
+            </p>
+            <p class="text-gray-400 text-xs mt-2">
+                Trabajo Práctico de Estadística | Profesora: Di Pietro Valeria
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Horse Database
+        const horses = [
+            {
+                id: 1, name: "RAYO VELOZ", emoji: "⚡", color: "yellow",
+                age: 5, weight: 495, winRate: 0.32,
+                specialty: "Terreno seco, césped",
+                rainPerformance: -0.35, hillPerformance: 0.05,
+                jockey: "María González", jockeyExp: 6, racesTogether: 15
+            },
+            {
+                id: 2, name: "TRUENO OSCURO", emoji: "⚫", color: "gray",
+                age: 6, weight: 510, winRate: 0.28,
+                specialty: "Terreno embarrado, tierra",
+                rainPerformance: 0.25, hillPerformance: 0.12,
+                jockey: "Carlos Méndez", jockeyExp: 8, racesTogether: 22
+            },
+            {
+                id: 3, name: "ESTRELLA DORADA", emoji: "⭐", color: "yellow",
+                age: 4, weight: 475, winRate: 0.18,
+                specialty: "Velocidad punta, rectas largas",
+                rainPerformance: -0.15, hillPerformance: -0.05,
+                jockey: "Ana Rodríguez", jockeyExp: 4, racesTogether: 8
+            },
+            {
+                id: 4, name: "VIENTO DEL SUR", emoji: "💨", color: "blue",
+                age: 7, weight: 525, winRate: 0.25,
+                specialty: "Resistencia, carreras largas",
+                rainPerformance: 0, hillPerformance: 0.15,
+                jockey: "Pedro Sánchez", jockeyExp: 10, racesTogether: 30
+            },
+            {
+                id: 5, name: "SOMBRA PLATEADA", emoji: "🌙", color: "gray",
+                age: 5, weight: 488, winRate: 0.22,
+                specialty: "Balance general, versátil",
+                rainPerformance: -0.08, hillPerformance: 0.03,
+                jockey: "Laura Fernández", jockeyExp: 5, racesTogether: 12
+            },
+            {
+                id: 6, name: "FUEGO CARMESÍ", emoji: "🔥", color: "red",
+                age: 6, weight: 502, winRate: 0.30,
+                specialty: "Césped húmedo, sprint final",
+                rainPerformance: 0.10, hillPerformance: 0.05,
+                jockey: "Roberto Díaz", jockeyExp: 7, racesTogether: 18
+            },
+            {
+                id: 7, name: "NUBE GRIS", emoji: "☁️", color: "gray",
+                age: 4, weight: 470, winRate: 0.15,
+                specialty: "Velocidad inicial, desarrollo",
+                rainPerformance: -0.10, hillPerformance: 0,
+                jockey: "Sofía Martínez", jockeyExp: 3, racesTogether: 5
+            },
+            {
+                id: 8, name: "TORNADO AZUL", emoji: "🌀", color: "blue",
+                age: 7, weight: 518, winRate: 0.27,
+                specialty: "Todo terreno, constante",
+                rainPerformance: 0.05, hillPerformance: 0.08,
+                jockey: "Diego Torres", jockeyExp: 9, racesTogether: 25
+            },
+            {
+                id: 9, name: "RELÁMPAGO NEGRO", emoji: "⚡", color: "black",
+                age: 5, weight: 492, winRate: 0.24,
+                specialty: "Aceleración en curvas",
+                rainPerformance: -0.05, hillPerformance: 0.07,
+                jockey: "Carmen López", jockeyExp: 6, racesTogether: 14
+            },
+            {
+                id: 10, name: "DIAMANTE BLANCO", emoji: "💎", color: "white",
+                age: 6, weight: 507, winRate: 0.29,
+                specialty: "Terreno seco, potencia",
+                rainPerformance: -0.20, hillPerformance: 0.10,
+                jockey: "Manuel Ruiz", jockeyExp: 8, racesTogether: 20
+            },
+            {
+                id: 11, name: "COMETA ROJO", emoji: "☄️", color: "red",
+                age: 4, weight: 478, winRate: 0.16,
+                specialty: "Alta velocidad, poca resistencia",
+                rainPerformance: -0.12, hillPerformance: -0.08,
+                jockey: "Patricia Vega", jockeyExp: 4, racesTogether: 7
+            },
+            {
+                id: 12, name: "LUNA CRECIENTE", emoji: "🌙", color: "silver",
+                age: 8, weight: 530, winRate: 0.20,
+                specialty: "Veterano, gestión táctica",
+                rainPerformance: 0, hillPerformance: 0.05,
+                jockey: "Andrés Silva", jockeyExp: 12, racesTogether: 35
+            },
+            {
+                id: 13, name: "SOL RADIANTE", emoji: "☀️", color: "orange",
+                age: 5, weight: 498, winRate: 0.26,
+                specialty: "Días soleados",
+                rainPerformance: -0.25, hillPerformance: 0.04,
+                jockey: "Isabel Moreno", jockeyExp: 7, racesTogether: 16
+            },
+            {
+                id: 14, name: "CASCADA CRISTALINA", emoji: "💧", color: "cyan",
+                age: 6, weight: 515, winRate: 0.23,
+                specialty: "Terreno mojado, bajadas",
+                rainPerformance: 0.15, hillPerformance: 0.12,
+                jockey: "Felipe Castro", jockeyExp: 6, racesTogether: 13
+            },
+            {
+                id: 15, name: "HALCÓN DORADO", emoji: "🦅", color: "gold",
+                age: 5, weight: 485, winRate: 0.21,
+                specialty: "Estratega, timing perfecto",
+                rainPerformance: -0.05, hillPerformance: 0.06,
+                jockey: "Verónica Paz", jockeyExp: 5, racesTogether: 11
+            },
+            {
+                id: 16, name: "TORMENTA PÚRPURA", emoji: "🌩️", color: "purple",
+                age: 7, weight: 522, winRate: 0.19,
+                specialty: "Fondo poderoso, últimos 400m",
+                rainPerformance: 0.08, hillPerformance: 0.09,
+                jockey: "Ricardo Navarro", jockeyExp: 8, racesTogether: 19
+            }
+        ];
+
+        // Weather conditions
+        const weatherConditions = [
+            { type: "sunny", name: "Soleado", icon: "☀️", probability: 0.60, grassMultiplier: 1.15, mudMultiplier: 1.0 },
+            { type: "cloudy", name: "Nublado", icon: "☁️", probability: 0.15, grassMultiplier: 1.0, mudMultiplier: 1.0 },
+            { type: "rainy", name: "Lluvioso", icon: "🌧️", probability: 0.25, grassMultiplier: 0.65, mudMultiplier: 1.25 }
+        ];
+
+        // Race state
+        let raceInProgress = false;
+        let currentWeather = null;
+        let raceResults = [];
+        let raceSpeed = 1500;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            createHorseInfoCards();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            document.getElementById('startRace').addEventListener('click', startRace);
+            document.getElementById('resetRace').addEventListener('click', resetRace);
+            document.getElementById('speedControl').addEventListener('change', function(e) {
+                raceSpeed = parseInt(e.target.value);
+            });
+        }
+
+        function createHorseInfoCards() {
+            const grid = document.getElementById('horseInfoGrid');
+            horses.forEach(horse => {
+                const card = document.createElement('div');
+                card.className = 'bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm p-5 rounded-xl border-2 border-white/20 hover:border-cyan-400/50 hover:scale-105 transition-all duration-300 shadow-xl hover:shadow-2xl';
+                card.innerHTML = `
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-3xl drop-shadow-lg">${horse.emoji}</span>
+                        <h4 class="font-bold text-sm text-gray-100 drop-shadow">${horse.name}</h4>
+                    </div>
+                    <div class="text-xs space-y-1 text-gray-200">
+                        <p><strong class="text-cyan-300">Win Rate:</strong> ${(horse.winRate * 100).toFixed(0)}%</p>
+                        <p><strong class="text-green-300">Edad:</strong> ${horse.age} años</p>
+                        <p><strong class="text-yellow-300">Peso:</strong> ${horse.weight} kg</p>
+                        <p><strong class="text-purple-300">Jockey:</strong> ${horse.jockey}</p>
+                        <p><strong class="text-pink-300">Especialidad:</strong> ${horse.specialty}</p>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function getAgeFactor(age) {
+            if (age >= 5 && age <= 7) return 1.05; // Prime
+            if (age >= 3 && age <= 4) return 0.95; // Young
+            return 0.90; // Veteran
+        }
+
+        function getDuplaFactor(racesTogether) {
+            if (racesTogether > 10) return 1.10;
+            if (racesTogether >= 3) return 1.00;
+            return 0.90;
+        }
+
+        function calculateBaseProbability(horse) {
+            const ageFactor = getAgeFactor(horse.age);
+            const duplaFactor = getDuplaFactor(horse.racesTogether);
+            return horse.winRate * ageFactor * duplaFactor;
+        }
+
+        function calculateWeatherAdjustedProb(horse, weather) {
+            const baseProb = calculateBaseProbability(horse);
+            let weatherMultiplier = 1.0;
+
+            if (weather.type === "sunny") {
+                weatherMultiplier = horse.rainPerformance < 0 ? weather.grassMultiplier : 1.0;
+            } else if (weather.type === "rainy") {
+                weatherMultiplier = horse.rainPerformance > 0 ? weather.mudMultiplier : weather.grassMultiplier;
+            }
+
+            return baseProb * weatherMultiplier;
+        }
+
+        function selectRandomWeather() {
+            const rand = Math.random();
+            let cumulative = 0;
+            for (const weather of weatherConditions) {
+                cumulative += weather.probability;
+                if (rand <= cumulative) {
+                    return weather;
+                }
+            }
+            return weatherConditions[0];
+        }
+
+        function startRace() {
+            if (raceInProgress) return;
+            
+            raceInProgress = true;
+            document.getElementById('startRace').disabled = true;
+            document.getElementById('resultsPanel').classList.add('hidden');
+            
+            // Select weather
+            currentWeather = selectRandomWeather();
+            
+            // Show conditions
+            document.getElementById('conditions').classList.remove('hidden');
+            document.getElementById('weatherIcon').textContent = currentWeather.icon;
+            document.getElementById('weatherText').textContent = currentWeather.name;
+            document.getElementById('weatherProb').textContent = `Probabilidad: ${(currentWeather.probability * 100)}%`;
+            
+            // Calculate probabilities for all horses
+            const horsesWithProbs = horses.map(horse => ({
+                ...horse,
+                baseProb: calculateBaseProbability(horse),
+                adjustedProb: calculateWeatherAdjustedProb(horse, currentWeather),
+                // Add some randomness for simulation
+                finalTime: 124 + (Math.random() * 10 - 5) // Base time 124s ± 5s
+            }));
+
+            // Normalize probabilities and add randomness
+            horsesWithProbs.forEach(horse => {
+                const randomFactor = 0.7 + (Math.random() * 0.6); // 0.7 to 1.3
+                horse.raceSpeed = horse.adjustedProb * randomFactor;
+            });
+
+            // Create race track
+            createRaceTrack(horsesWithProbs);
+            
+            // Simulate race
+            setTimeout(() => simulateRace(horsesWithProbs), 500);
+        }
+
+        function createRaceTrack(horsesData) {
+            const container = document.getElementById('horsesContainer');
+            container.innerHTML = '';
+            document.getElementById('raceTrack').classList.remove('hidden');
+
+            horsesData.forEach((horse, index) => {
+                const horseElement = document.createElement('div');
+                horseElement.className = 'relative flex items-center py-2 border-b border-white/10 hover:bg-white/5 transition-colors duration-200';
+                horseElement.innerHTML = `
+                    <div class="w-32 text-xs font-semibold truncate text-gray-100 drop-shadow">${horse.emoji} ${horse.name}</div>
+                    <div class="flex-1 relative h-8 bg-gradient-to-r from-white/10 to-white/5 rounded-full track-line backdrop-blur-sm border border-white/10 shadow-inner">
+                        <div id="horse-${horse.id}" class="horse-running absolute left-0 top-1/2 transform -translate-y-1/2 text-2xl transition-all duration-100 drop-shadow-lg">
+                            ${horse.emoji}
+                        </div>
+                    </div>
+                    <div class="w-20 text-xs text-right">
+                        <span id="position-${horse.id}" class="text-gray-200 font-bold drop-shadow">-</span>
+                    </div>
+                `;
+                container.appendChild(horseElement);
+            });
+        }
+
+        function simulateRace(horsesData) {
+            const duration = raceSpeed;
+            const steps = 100;
+            const interval = duration / steps;
+            let currentStep = 0;
+
+            const raceInterval = setInterval(() => {
+                currentStep++;
+                const progress = currentStep / steps;
+
+                horsesData.forEach(horse => {
+                    const horseEl = document.getElementById(`horse-${horse.id}`);
+                    if (horseEl) {
+                        // Calculate position with some randomness
+                        const baseProgress = progress * horse.raceSpeed;
+                        const randomness = Math.random() * 0.05;
+                        const finalProgress = Math.min((baseProgress + randomness) * 100, 98);
+                        horseEl.style.left = `${finalProgress}%`;
+                    }
+                });
+
+                // Update progress
+                document.getElementById('raceProgress').textContent = `${Math.round(progress * 100)}%`;
+
+                if (currentStep >= steps) {
+                    clearInterval(raceInterval);
+                    finishRace(horsesData);
+                }
+            }, interval);
+        }
+
+        function finishRace(horsesData) {
+            // Calculate final positions
+            horsesData.sort((a, b) => b.raceSpeed - a.raceSpeed);
+            
+            horsesData.forEach((horse, index) => {
+                const posEl = document.getElementById(`position-${horse.id}`);
+                if (posEl) {
+                    posEl.textContent = `${index + 1}°`;
+                }
+                
+                // Add winner celebration
+                if (index === 0) {
+                    const horseEl = document.getElementById(`horse-${horse.id}`);
+                    if (horseEl) {
+                        horseEl.classList.add('winner-celebration');
+                        horseEl.style.left = '98%';
+                    }
+                }
+            });
+
+            raceResults = horsesData;
+            
+            setTimeout(() => {
+                showResults();
+            }, 1000);
+        }
+
+        function showResults() {
+            const winner = raceResults[0];
+            document.getElementById('resultsPanel').classList.remove('hidden');
+            
+            // Winner Display
+            const winnerDisplay = document.getElementById('winnerDisplay');
+            winnerDisplay.innerHTML = `
+                <div class="text-center">
+                    <div class="text-7xl mb-4 drop-shadow-2xl animate-bounce">${winner.emoji}</div>
+                    <h3 class="text-4xl font-bold text-gray-900 mb-3 drop-shadow-lg">${winner.name}</h3>
+                    <p class="text-2xl text-gray-800 mb-6 font-semibold">¡Ganador de la Carrera!</p>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div class="bg-white/80 backdrop-blur-sm p-4 rounded-xl shadow-lg border border-white/40 hover:scale-105 transition-transform duration-300">
+                            <div class="font-bold text-gray-700">Win Rate Base</div>
+                            <div class="text-3xl font-bold text-blue-600 drop-shadow">${(winner.winRate * 100).toFixed(0)}%</div>
+                        </div>
+                        <div class="bg-white/80 backdrop-blur-sm p-4 rounded-xl shadow-lg border border-white/40 hover:scale-105 transition-transform duration-300">
+                            <div class="font-bold text-gray-700">Edad</div>
+                            <div class="text-3xl font-bold text-green-600 drop-shadow">${winner.age} años</div>
+                        </div>
+                        <div class="bg-white/80 backdrop-blur-sm p-4 rounded-xl shadow-lg border border-white/40 hover:scale-105 transition-transform duration-300">
+                            <div class="font-bold text-gray-700">Jockey</div>
+                            <div class="text-lg font-bold text-purple-600 drop-shadow mt-2">${winner.jockey}</div>
+                        </div>
+                        <div class="bg-white/80 backdrop-blur-sm p-4 rounded-xl shadow-lg border border-white/40 hover:scale-105 transition-transform duration-300">
+                            <div class="font-bold text-gray-700">Carreras Juntos</div>
+                            <div class="text-3xl font-bold text-orange-600 drop-shadow">${winner.racesTogether}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Probability Calculations
+            showProbabilityCalculations(winner);
+            
+            // Final Ranking
+            showFinalRanking();
+            
+            // Scroll to results
+            document.getElementById('resultsPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            
+            raceInProgress = false;
+            document.getElementById('startRace').disabled = false;
+        }
+
+        function showProbabilityCalculations(winner) {
+            const container = document.getElementById('probabilityCalculations');
+            
+            const ageFactor = getAgeFactor(winner.age);
+            const duplaFactor = getDuplaFactor(winner.racesTogether);
+            const baseProb = calculateBaseProbability(winner);
+            const adjustedProb = calculateWeatherAdjustedProb(winner, currentWeather);
+
+            // Calculate total probability across all weather conditions
+            const probSunny = baseProb * (winner.rainPerformance < 0 ? 1.15 : 1.0);
+            const probCloudy = baseProb * 1.0;
+            const probRainy = baseProb * (winner.rainPerformance > 0 ? 1.25 : 0.65);
+            const totalProb = (0.60 * probSunny) + (0.15 * probCloudy) + (0.25 * probRainy);
+
+            // Bayes calculation
+            let bayesProb = 0;
+            if (currentWeather.type === "rainy") {
+                bayesProb = (0.25 * probRainy) / totalProb;
+            } else if (currentWeather.type === "sunny") {
+                bayesProb = (0.60 * probSunny) / totalProb;
+            } else {
+                bayesProb = (0.15 * probCloudy) / totalProb;
+            }
+
+            container.innerHTML = `
+                <div class="space-y-6">
+                    <!-- Step 1: Base Probability -->
+                    <div class="bg-white/90 backdrop-blur-sm p-6 rounded-xl shadow-xl border border-white/40 hover:scale-102 transition-transform duration-300">
+                        <h4 class="text-2xl font-bold text-blue-600 mb-3 drop-shadow">📐 Paso 1: Probabilidad Base Ajustada</h4>
+                        <div class="space-y-2 text-gray-700">
+                            <p class="font-mono text-sm bg-gray-50 p-3 rounded">
+                                P(Victoria) = WinRate × FactorEdad × FactorDupla
+                            </p>
+                            <p>• <strong>Win Rate:</strong> ${(winner.winRate * 100).toFixed(0)}% = ${winner.winRate.toFixed(2)}</p>
+                            <p>• <strong>Factor Edad</strong> (${winner.age} años - ${winner.age >= 5 && winner.age <= 7 ? 'Prime' : winner.age <= 4 ? 'Joven' : 'Veterano'}): ${ageFactor}</p>
+                            <p>• <strong>Factor Dupla</strong> (${winner.racesTogether} carreras juntos): ${duplaFactor}</p>
+                            <div class="mt-3 p-4 bg-blue-50 rounded-lg border-2 border-blue-200">
+                                <p class="font-bold">Cálculo:</p>
+                                <p class="font-mono">${winner.winRate.toFixed(2)} × ${ageFactor} × ${duplaFactor} = ${baseProb.toFixed(4)}</p>
+                                <p class="text-xl font-bold text-blue-600 mt-2">Probabilidad Base: ${(baseProb * 100).toFixed(2)}%</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Weather Adjustment -->
+                    <div class="bg-white/90 backdrop-blur-sm p-6 rounded-xl shadow-xl border border-white/40 hover:scale-102 transition-transform duration-300">
+                        <h4 class="text-2xl font-bold text-green-600 mb-3 drop-shadow">🌤️ Paso 2: Ajuste por Condiciones Climáticas</h4>
+                        <div class="space-y-2 text-gray-700">
+                            <p><strong>Clima actual:</strong> ${currentWeather.name} ${currentWeather.icon}</p>
+                            <p><strong>Especialidad del caballo:</strong> ${winner.specialty}</p>
+                            <p><strong>Rendimiento en lluvia:</strong> ${winner.rainPerformance > 0 ? '+' : ''}${(winner.rainPerformance * 100).toFixed(0)}%</p>
+                            
+                            ${currentWeather.type === 'sunny' ? `
+                                <p class="mt-2">Como está <strong>soleado</strong> y el caballo ${winner.rainPerformance < 0 ? 'se especializa en terreno seco' : 'tiene buen rendimiento general'}:</p>
+                                <p class="font-mono bg-gray-50 p-2 rounded">Multiplicador = ${winner.rainPerformance < 0 ? currentWeather.grassMultiplier : 1.0}</p>
+                            ` : currentWeather.type === 'rainy' ? `
+                                <p class="mt-2">Como está <strong>lloviendo</strong> y el caballo ${winner.rainPerformance > 0 ? 'se especializa en barro' : 'prefiere terreno seco'}:</p>
+                                <p class="font-mono bg-gray-50 p-2 rounded">Multiplicador = ${winner.rainPerformance > 0 ? currentWeather.mudMultiplier : currentWeather.grassMultiplier}</p>
+                            ` : `
+                                <p class="mt-2">Como está <strong>nublado</strong> (condiciones neutras):</p>
+                                <p class="font-mono bg-gray-50 p-2 rounded">Multiplicador = 1.0</p>
+                            `}
+                            
+                            <div class="mt-3 p-4 bg-green-50 rounded-lg border-2 border-green-200">
+                                <p class="font-bold">Cálculo Ajustado:</p>
+                                <p class="font-mono">${(baseProb * 100).toFixed(2)}% × ${(adjustedProb / baseProb).toFixed(2)} = ${(adjustedProb * 100).toFixed(2)}%</p>
+                                <p class="text-xl font-bold text-green-600 mt-2">Probabilidad Ajustada: ${(adjustedProb * 100).toFixed(2)}%</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Total Probability -->
+                    <div class="bg-white/90 backdrop-blur-sm p-6 rounded-xl shadow-xl border border-white/40 hover:scale-102 transition-transform duration-300">
+                        <h4 class="text-2xl font-bold text-purple-600 mb-3 drop-shadow">📊 Paso 3: Teorema de Probabilidad Total</h4>
+                        <div class="space-y-2 text-gray-700">
+                            <p>Considerando <strong>todos los escenarios climáticos</strong> posibles:</p>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 my-3">
+                                <div class="bg-yellow-50 p-3 rounded border border-yellow-200">
+                                    <p class="font-bold">☀️ Soleado (60%)</p>
+                                    <p class="text-sm">${(probSunny * 100).toFixed(2)}%</p>
+                                </div>
+                                <div class="bg-gray-50 p-3 rounded border border-gray-200">
+                                    <p class="font-bold">☁️ Nublado (15%)</p>
+                                    <p class="text-sm">${(probCloudy * 100).toFixed(2)}%</p>
+                                </div>
+                                <div class="bg-blue-50 p-3 rounded border border-blue-200">
+                                    <p class="font-bold">🌧️ Lluvia (25%)</p>
+                                    <p class="text-sm">${(probRainy * 100).toFixed(2)}%</p>
+                                </div>
+                            </div>
+                            <p class="font-mono text-sm bg-gray-50 p-3 rounded">
+                                P(Victoria Total) = 0.60×${(probSunny * 100).toFixed(2)}% + 0.15×${(probCloudy * 100).toFixed(2)}% + 0.25×${(probRainy * 100).toFixed(2)}%
+                            </p>
+                            <div class="mt-3 p-4 bg-purple-50 rounded-lg border-2 border-purple-200">
+                                <p class="font-bold">Cálculo:</p>
+                                <p class="font-mono">${(0.60 * probSunny).toFixed(4)} + ${(0.15 * probCloudy).toFixed(4)} + ${(0.25 * probRainy).toFixed(4)} = ${totalProb.toFixed(4)}</p>
+                                <p class="text-xl font-bold text-purple-600 mt-2">Probabilidad Total: ${(totalProb * 100).toFixed(2)}%</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Bayes -->
+                    <div class="bg-white/90 backdrop-blur-sm p-6 rounded-xl shadow-xl border border-white/40 hover:scale-102 transition-transform duration-300">
+                        <h4 class="text-2xl font-bold text-red-600 mb-3 drop-shadow">🔄 Paso 4: Teorema de Bayes</h4>
+                        <div class="space-y-2 text-gray-700">
+                            <p class="italic">Pregunta: Si ${winner.name} ganó, ¿cuál es la probabilidad de que el clima fuera ${currentWeather.name}?</p>
+                            <p class="font-mono text-sm bg-gray-50 p-3 rounded mt-3">
+                                P(${currentWeather.name}|Ganó) = [P(${currentWeather.name}) × P(Ganó|${currentWeather.name})] / P(Ganó)
+                            </p>
+                            <p class="mt-2">• <strong>P(${currentWeather.name}):</strong> ${(currentWeather.probability * 100)}%</p>
+                            <p>• <strong>P(Ganó|${currentWeather.name}):</strong> ${(adjustedProb * 100).toFixed(2)}%</p>
+                            <p>• <strong>P(Ganó):</strong> ${(totalProb * 100).toFixed(2)}%</p>
+                            <div class="mt-3 p-4 bg-red-50 rounded-lg border-2 border-red-200">
+                                <p class="font-bold">Cálculo de Bayes:</p>
+                                <p class="font-mono">(${currentWeather.probability} × ${adjustedProb.toFixed(4)}) / ${totalProb.toFixed(4)} = ${bayesProb.toFixed(4)}</p>
+                                <p class="text-xl font-bold text-red-600 mt-2">Probabilidad Bayesiana: ${(bayesProb * 100).toFixed(1)}%</p>
+                                <p class="mt-2 text-sm">
+                                    ${bayesProb > currentWeather.probability ? 
+                                        `✅ La victoria de ${winner.name} <strong>aumenta</strong> la probabilidad de que fuera ${currentWeather.name} (de ${(currentWeather.probability * 100)}% a ${(bayesProb * 100).toFixed(1)}%)` : 
+                                        `⚠️ La probabilidad de ${currentWeather.name} es similar a la esperada`
+                                    }
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Summary -->
+                    <div class="bg-gradient-to-r from-green-500/40 to-blue-500/40 backdrop-blur-sm p-6 rounded-xl shadow-2xl border-2 border-green-300/50 hover:scale-102 transition-transform duration-300">
+                        <h4 class="text-2xl font-bold text-white mb-3 drop-shadow-lg">📝 Resumen del Análisis</h4>
+                        <div class="space-y-2 text-white">
+                            <p>✅ <strong>${winner.name}</strong> tenía una probabilidad total de victoria del <strong>${(totalProb * 100).toFixed(2)}%</strong></p>
+                            <p>✅ Con el clima ${currentWeather.name}, su probabilidad ajustada era <strong>${(adjustedProb * 100).toFixed(2)}%</strong></p>
+                            <p>✅ Los factores clave fueron: ${winner.age >= 5 && winner.age <= 7 ? 'edad óptima (+5%)' : ''}, ${winner.racesTogether > 10 ? 'excelente química con el jockey (+10%)' : ''}, ${currentWeather.type === 'rainy' && winner.rainPerformance > 0 ? 'especialista en lluvia (+25%)' : currentWeather.type === 'sunny' && winner.rainPerformance < 0 ? 'especialista en terreno seco (+15%)' : 'buenas condiciones generales'}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function showFinalRanking() {
+            const container = document.getElementById('finalRanking');
+            container.innerHTML = raceResults.map((horse, index) => {
+                const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}°`;
+                return `
+                    <div class="flex items-center gap-4 p-4 rounded-xl ${index < 3 ? 'bg-gradient-to-r from-yellow-400/40 to-orange-400/40 backdrop-blur-sm border-2 border-yellow-300/50 shadow-lg' : 'bg-white/10 backdrop-blur-sm border border-white/20'} hover:scale-102 transition-transform duration-300">
+                        <div class="text-3xl w-12 text-center font-bold drop-shadow-lg">${medal}</div>
+                        <div class="text-3xl drop-shadow-lg">${horse.emoji}</div>
+                        <div class="flex-1">
+                            <div class="font-bold text-lg ${index < 3 ? 'text-gray-900' : 'text-gray-100'} drop-shadow">${horse.name}</div>
+                            <div class="text-xs ${index < 3 ? 'text-gray-700' : 'text-gray-300'}">
+                                Base: ${(horse.baseProb * 100).toFixed(1)}% | 
+                                Ajustado: ${(horse.adjustedProb * 100).toFixed(1)}%
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function resetRace() {
+            raceInProgress = false;
+            document.getElementById('startRace').disabled = false;
+            document.getElementById('conditions').classList.add('hidden');
+            document.getElementById('raceTrack').classList.add('hidden');
+            document.getElementById('resultsPanel').classList.add('hidden');
+            document.getElementById('horsesContainer').innerHTML = '';
+            raceResults = [];
+            currentWeather = null;
+        }
+    </script>
+</body>
+</html>
